@@ -96,7 +96,11 @@ for elem in allNews:
   ti = elem.find('a', class_="headline__HeadlineLink-sc-1uoawmp-0 jbDMkW")
   ti1 = ti.text
   print(d1, '\n', full_l, '\n', te1, '\n', ti1 )
-  cur.execute("INSERT INTO News VALUES(?, ?, ?, ?)", (d_t, full_l, ti1, te1))
+  try:
+    cur.execute("INSERT INTO News VALUES(?, ?, ?, ?)", (d_t, full_l, ti1, te1))
+  except:
+    break
+  
 conn.commit()
 
 # Показать все записи в БД
@@ -152,16 +156,16 @@ def delete_news():
     print("Запись не была удалена")
     
 # Поиск записи с определенными словами
-
-pattern = input('Ведите слово: ')
-cur.execute('SELECT * FROM News WHERE title LIKE ?', ('%'+pattern+'%',))
-res_tit = cur.fetchall()
-for elem in res_tit:
-    print(' \n'.join(elem))
-cur.execute('SELECT * FROM News WHERE text LIKE ?', ('%'+pattern+'%',))
-res_text = cur.fetchall()
-for elem in res_text:
-    print(' \n'.join(elem))
+def search():
+  pattern = input('Введите слово, с которым хотите найти записи: ')
+  cur.execute('SELECT * FROM News WHERE title LIKE ?', ('%'+pattern+'%',))
+  res_tit = cur.fetchall()
+  for elem in res_tit:
+      print(' \n'.join(elem))
+  cur.execute('SELECT * FROM News WHERE text LIKE ?', ('%'+pattern+'%',))
+  res_text = cur.fetchall()
+  for elem in res_text:
+      print(' \n'.join(elem))
     
 # Запись БД в файл JSON
 
@@ -239,7 +243,8 @@ def show_favorit_news(login: str):
     cur.execute('SELECT date, title, text, Favorites.favorite_news FROM Favorites JOIN News ON Favorites.favorite_news = News.link WHERE id = ?', (arg,))
     result = cur.fetchall()
     for res in result:
-      print(res)
+      print('\n'.join(elem))
+      print('\n')
 
 
 def count_favorites_news(login: str):
@@ -268,11 +273,13 @@ def show_recommended_news(login: str):
       cur.execute("SELECT * FROM News WHERE date BETWEEN (?) AND (?) AND title LIKE ?", (d1, d, '%'+pattern+'%'))
       res_tit = cur.fetchall()
       for elem in res_tit:
-        print(' \n'.join(elem))
+        print('\n'.join(elem))
+        print('\n')
       cur.execute("SELECT * FROM News WHERE date BETWEEN (?) AND (?) AND text LIKE ?", (d1, d, '%'+pattern+'%'))
       res_text = cur.fetchall()
       for elem in res_text:
-        print(' \n'.join(elem))
+        print('\n'.join(elem))
+        print('\n')
 
 
 def request_key_tags(login: str):
