@@ -116,14 +116,15 @@ def show_news():
     print(news)
     
 # Дамп БД
-
-answer = input("Создание резервной копии БД. Yes/no ? \n")
-if answer == 'Yes':
+def dump_db():
   fail_name = input('Введите имя файла в формате [ддммгггг_ччммсс].sql \n')
   path = "db/" + fail_name
   with open(path, "w") as f:
     for sql in conn.iterdump():
       f.write(sql)
+answer = input("Создание резервной копии БД. Yes/no ? \n")
+if answer == 'Yes':
+  dump_db()
     
 # Восстановление БД из файла [name].sql (ввести имя файла на диске)
 def data_recovery():
@@ -132,6 +133,9 @@ def data_recovery():
   with open(path, "r") as f:
     sql = f.read()
     cur.executescript(sql)
+answer = input('Восстановление БД из копии. Yes/no ? \n')
+if answer == 'Yes':
+  data_recovery()
   
 # Показать новости в заданном временном диапазоне
 def show_news_im_period():
@@ -228,7 +232,10 @@ def add_favorite_news(login: str):
     for user in user:
       arg = user[0]   # Получаю UUID
     cur.execute('INSERT INTO Favorites (id, favorite_news) VALUES (?, ?)', (arg, favorite_news))
-    print('Новость добавлена!')
+    cur.execute('SELECT favorite_news FROM Favorites WHERE favorite_news = ?', (favorite_news,))
+    res = cur.fetchall()
+    if len(res) != 0:
+      print ("Новость добавлена!")
 
 
 def delete_favorite_news(login: str):
@@ -248,7 +255,7 @@ def show_favorit_news(login: str):
     cur.execute('SELECT date, title, text, Favorites.favorite_news FROM Favorites JOIN News ON Favorites.favorite_news = News.link WHERE id = ?', (arg,))
     result = cur.fetchall()
     for res in result:
-      print('\n'.join(elem))
+      print('\n'.join(res))
       print('\n')
 
 
@@ -492,7 +499,7 @@ conn.commit()
 #   print (term.normalized, term.count)
 
 # Работа с SQLAlchemy
-engine = create_engine('sqlite:///my_news.db')  # относительный путь
+engine = create_engine ('sqlite:///db/alchemy_table.db')  # абсолютный путь
 engine.connect()
 metadata = MetaData()
 
@@ -503,18 +510,18 @@ News = Table('News', metadata,
             Column('title', Text()),
             Column('text', Text()),
 )
-
+# Создание таблицы пользователей
 Users = Table('Users', metadata,
             Column('uuid', Text(), primary_key=True),
             Column('login', Text()),
             Column('password', Text()),
 )
-
+# Создание таблицы избранных новостей
 Favorites = Table('Favorites', metadata,
             Column('id', Text(), ForeignKey("Users.uuid")),
             Column('favorite_news', Text(), ForeignKey("News.link")),
 )
-
+# Создание таблицы ключевых слов
 Tags = Table('Tags', metadata,
             Column('id', Text(), ForeignKey("Users.uuid")),
             Column('key_tag', Text()),
