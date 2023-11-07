@@ -10,6 +10,8 @@ import csv
 import hashlib
 import os
 import uuid
+import sqlalchemy
+from sqlalchemy import  create_engine, MetaData, Table, Column, Integer, String, Text, ForeignKey, Date
 # from rutermextract import TermExtractor
 
 url = 'https://www.coindesk.com/livewire/'
@@ -41,8 +43,8 @@ cur = conn.cursor()
 cur.execute('''
 CREATE TABLE IF NOT EXISTS News (
 date DATE,
-link TEXT,
-title TEXT PRIMARY KEY,
+link TEXT PRIMARY KEY,
+title TEXT,
 text TEXT
 )
 ''')
@@ -52,8 +54,8 @@ conn.commit()
 
 cur.execute('''
 CREATE TABLE IF NOT EXISTS Users (
-uuid TEXT,
-login TEXT PRIMARY KEY,
+uuid TEXT PRIMARY KEY,
+login TEXT,
 password TEXT
 )
 ''')
@@ -65,6 +67,7 @@ cur.execute('''
 CREATE TABLE IF NOT EXISTS Favorites (
 id TEXT,
 favorite_news TEXT,
+FOREIGN KEY (id) REFERENCES Users(uuid)
 FOREIGN KEY (favorite_news) REFERENCES News(link)
 )
 ''')
@@ -114,11 +117,13 @@ def show_news():
     
 # Дамп БД
 
-fail_name = input('Введите имя файла в формате [ддммгггг_ччммсс].sql \n')
-path = "db/" + fail_name
-with open(path, "w") as f:
-  for sql in conn.iterdump():
-    f.write(sql)
+answer = input("Создание резервной копии БД. Yes/no ? \n")
+if answer == 'Yes':
+  fail_name = input('Введите имя файла в формате [ддммгггг_ччммсс].sql \n')
+  path = "db/" + fail_name
+  with open(path, "w") as f:
+    for sql in conn.iterdump():
+      f.write(sql)
     
 # Восстановление БД из файла [name].sql (ввести имя файла на диске)
 def data_recovery():
@@ -129,19 +134,19 @@ def data_recovery():
     cur.executescript(sql)
   
 # Показать новости в заданном временном диапазоне
-
-d1 = input('Введите начальную дату в формате дд мм гггг, без точек, через пробелы ')
-d2 = input('Введите конечную дату в формате дд мм гггг, без точек, через пробелы ')
-d_1 = datetime.strptime(d1, '%d %m %Y').date()
-d_2 = datetime.strptime(d2, '%d %m %Y').date()
-# d_2 = datetime.now().date()
-# d_1 = d_2 - relativedelta(days=8)
-# print(type(d_1), type(d_2))
-# pattern = 'two'
-cur.execute('SELECT * FROM News WHERE date BETWEEN (?) AND (?)', (d_1, d_2))
-result1 = cur.fetchall()
-for elem in result1:
-    print(' \n'.join(elem))
+def show_news_im_period():
+  d1 = input('Введите начальную дату в формате дд мм гггг, без точек, через пробелы ')
+  d2 = input('Введите конечную дату в формате дд мм гггг, без точек, через пробелы ')
+  d_1 = datetime.strptime(d1, '%d %m %Y').date()
+  d_2 = datetime.strptime(d2, '%d %m %Y').date()
+  # d_2 = datetime.now().date()
+  # d_1 = d_2 - relativedelta(days=8)
+  # print(type(d_1), type(d_2))
+  # pattern = 'two'
+  cur.execute('SELECT * FROM News WHERE date BETWEEN (?) AND (?)', (d_1, d_2))
+  result1 = cur.fetchall()
+  for elem in result1:
+      print(' \n'.join(elem))
     
 # Удаление записи
 def delete_news():
@@ -289,6 +294,14 @@ def request_key_tags(login: str):
     for user in user:
       arg = user[0]
     cur.execute('INSERT INTO Tags (id, key_tag) VALUES (?, ?)', (arg, tag))
+
+
+def count_news():
+    cur.execute('SELECT COUNT(*) FROM News')
+    result = cur.fetchall()
+    for res in result:
+      arg = res[0]
+      print('Количество новостей -  ', arg)
 
 
 def count_users():
@@ -439,6 +452,7 @@ while True:
               2. Получить количество пользователей
               3. Получить информацию по UUID
               4. Удалить новость из общей базы и базы пользователей
+              5. Получить количество новостей
               ''')
               admin_input = input()
               if admin_input == '1':
@@ -453,6 +467,9 @@ while True:
 
               elif admin_input == '4':
                 remove_news_from_everywhere()
+                
+              elif admin_input == '5':
+                count_news()
 
     elif user_input == '4':
         print('Завершение работы')
@@ -473,4 +490,33 @@ conn.commit()
 
 # for term in term_extractor(one_string):
 #   print (term.normalized, term.count)
+
+# Работа с SQLAlchemy
+engine = create_engine('sqlite:///my_news.db')  # относительный путь
+engine.connect()
+metadata = MetaData()
+
+# Создание таблицы с новостями
+News = Table('News', metadata,
+            Column('data', Date()),
+            Column('link', Text(), primary_key=True),
+            Column('title', Text()),
+            Column('text', Text()),
+)
+
+Users = Table('Users', metadata,
+            Column('uuid', Text(), primary_key=True),
+            Column('login', Text()),
+            Column('password', Text()),
+)
+
+Favorites = Table('Favorites', metadata,
+            Column('id', Text(), ForeignKey("Users.uuid")),
+            Column('favorite_news', Text(), ForeignKey("News.link")),
+)
+
+Tags = Table('Tags', metadata,
+            Column('id', Text(), ForeignKey("Users.uuid")),
+            Column('key_tag', Text()),
+)
 
